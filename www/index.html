@@ -30,99 +30,38 @@
             <label for="plateInput">车牌号 <span class="req">*</span></label>
             <div class="plate-row">
               <input type="text" id="plateInput" placeholder="如：粤A12345" autocomplete="off" maxlength="9">
-              <button type="button" id="ocrBtn" class="btn-ocr">识别车牌</button>
+              <button type="button" id="ocrBtn" class="btn-ocr">拍车牌照</button>
             </div>
             <div class="field-error" id="plateError" hidden>请输入正确格式的车牌号</div>
           </div>
 
-          <div class="field" id="vehicleTypeField">
-            <label for="vehicleTypeInput">车辆类型 <span class="req">*</span></label>
-            <select id="vehicleTypeInput">
-              <option value="">请选择车辆类型</option>
-              <option>小型轿车</option>
-              <option>SUV</option>
-              <option>小型客车</option>
-              <option>中型客车</option>
-              <option>大型客车</option>
-              <option>轻型货车</option>
-              <option>中型货车</option>
-              <option>重型货车</option>
-              <option>摩托车</option>
-              <option>其他</option>
+          <div class="field">
+            <label for="gearboxInput">变速器</label>
+            <select id="gearboxInput">
+              <option value="">请选择</option>
+              <option>手动挡</option>
+              <option>自动挡</option>
             </select>
-            <div class="field-error" id="vehicleTypeError" hidden>请选择车辆类型</div>
-          </div>
-
-          <div class="row2">
-            <div class="field">
-              <label for="fuelInput">燃油类型</label>
-              <select id="fuelInput">
-                <option value="">请选择</option>
-                <option>汽油</option>
-                <option>柴油</option>
-                <option>纯电动</option>
-                <option>混动</option>
-                <option>天然气</option>
-                <option>其他</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="gearboxInput">变速器</label>
-              <select id="gearboxInput">
-                <option value="">请选择</option>
-                <option>手动挡</option>
-                <option>自动挡</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row2">
-            <div class="field">
-              <label for="drivetrainInput">驱动形式</label>
-              <select id="drivetrainInput">
-                <option value="">请选择</option>
-                <option>前驱</option>
-                <option>后驱</option>
-                <option>四驱</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="mileageInput">行驶公里数</label>
-              <div class="input-unit">
-                <input type="number" id="mileageInput" inputmode="numeric" placeholder="如 120000" min="0" step="1">
-                <span class="unit">km</span>
-              </div>
-            </div>
           </div>
 
           <div class="field">
-            <label for="lineNoInput">检测线</label>
-            <input type="text" id="lineNoInput" placeholder="如：1号线" maxlength="12">
+            <label for="exhaustInput">排气管数量</label>
+            <select id="exhaustInput">
+              <option value="">请选择</option>
+              <option>1</option>
+              <option>2</option>
+              <option>4</option>
+              <option>6</option>
+              <option>8</option>
+            </select>
           </div>
 
           <div class="field">
-            <label>预检项目</label>
-            <div class="chip-group">
-              <label class="chip"><input type="checkbox" name="items" value="外检"><span>外检</span></label>
-              <label class="chip"><input type="checkbox" name="items" value="安检"><span>安检</span></label>
-              <label class="chip"><input type="checkbox" name="items" value="环检"><span>环检</span></label>
-              <label class="chip"><input type="checkbox" name="items" value="综检"><span>综检</span></label>
+            <label for="mileageInput">行驶公里数</label>
+            <div class="input-unit">
+              <input type="number" id="mileageInput" inputmode="numeric" placeholder="如 120000" min="0" step="1">
+              <span class="unit">km</span>
             </div>
-          </div>
-
-          <div class="field">
-            <label>车辆照片</label>
-            <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
-            <div id="photoPreviewWrap" class="photo-wrap">
-              <img id="photoPreview" alt="车辆照片预览" hidden>
-              <div id="photoPlaceholder" class="photo-placeholder">点击拍摄或选择车辆照片</div>
-              <button type="button" id="retakeBtn" class="btn-small" hidden>重拍</button>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="remarkInput">备注</label>
-            <textarea id="remarkInput" rows="2" placeholder="选填" maxlength="100"></textarea>
           </div>
 
           <div class="meta-row">
@@ -191,10 +130,6 @@
           <label for="inspectorInput">预检员姓名</label>
           <input type="text" id="inspectorInput" maxlength="20" placeholder="张三">
         </div>
-        <div class="field">
-          <label for="provinceInput">车牌省份字（用于识别车牌）</label>
-          <input type="text" id="provinceInput" maxlength="2" placeholder="粤">
-        </div>
       </div>
       <div class="modal-actions">
         <button type="button" id="settingsSave" class="btn-primary btn-block">保存</button>
@@ -218,43 +153,49 @@
     </div>
   </div>
 
-  <!-- ========== 车牌识别 ========== -->
+  <!-- ========== 车牌照片 ========== -->
   <div id="ocrModal" class="modal" hidden>
     <div class="modal-panel ocr-panel">
       <div class="modal-head">
-        <h2>识别车牌</h2>
+        <h2>拍摄车牌照片</h2>
         <button type="button" id="ocrCancelBtn" class="btn-close">关闭</button>
       </div>
 
       <div class="ocr-body">
+        <p id="ocrStatus" class="ocr-status-top">请将车牌对准方框，点击拍照</p>
+
         <div id="ocrVideoWrap" class="ocr-video-wrap" hidden>
           <video id="ocrVideo" autoplay playsinline muted></video>
           <div id="ocrGuide" class="ocr-guide"></div>
-          <div id="ocrStatus" class="ocr-status">正在准备…</div>
+        </div>
+
+        <div id="ocrShotWrap" class="ocr-shot-wrap" hidden>
+          <img id="ocrShot" alt="车牌照片">
         </div>
 
         <div id="ocrFallback" class="ocr-fallback" hidden>
-          <p id="ocrFallbackMsg">当前环境无法调用摄像头。请直接拍照识别：</p>
-          <button type="button" id="ocrFallbackBtn" class="btn-primary btn-block">拍照 / 选择照片</button>
+          <p id="ocrFallbackMsg">当前环境无法调用摄像头。请从相册选择车牌照片：</p>
         </div>
 
         <div id="ocrResultRow" class="ocr-result" hidden>
-          <label for="ocrResult">识别结果（可修改）</label>
-          <input type="text" id="ocrResult" maxlength="9">
+          <label for="ocrResult">车牌号（按照片填写）</label>
+          <input type="text" id="ocrResult" maxlength="9" placeholder="如：粤A12345" autocomplete="off">
           <div class="modal-actions modal-actions-row">
-            <button type="button" id="ocrRetryBtn" class="btn-secondary">重新识别</button>
+            <button type="button" id="ocrRetryBtn" class="btn-secondary">重拍</button>
             <button type="button" id="ocrConfirmBtn" class="btn-primary">确认填写</button>
           </div>
         </div>
 
-        <button type="button" id="ocrPhotoBtn" class="btn-primary btn-block" hidden>拍照识别</button>
+        <div class="modal-actions">
+          <button type="button" id="ocrPhotoBtn" class="btn-primary btn-block" hidden>拍 照</button>
+          <button type="button" id="ocrAlbumBtn" class="btn-secondary btn-block" hidden>从相册选择</button>
+        </div>
       </div>
 
-      <input type="file" id="ocrFileInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="ocrAlbumInput" accept="image/*" hidden>
     </div>
   </div>
 
-  <script src="lib/tesseract/tesseract.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

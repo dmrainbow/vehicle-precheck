@@ -9,3 +9,5 @@ dist/
 /index.html
 /style.css
 /lib/
+apk/
+*.jpg

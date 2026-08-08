@@ -2,7 +2,7 @@
 
 /* ============================================================
  * 车辆检测站预检登记工具
- * 纯前端，数据存 localStorage，车牌识别基于本地 Tesseract.js
+ * 纯前端，数据存 localStorage，车牌照片拍摄预览
  * ============================================================ */
 
 /* ---------- 基础工具 ---------- */
@@ -43,7 +43,7 @@ function loadImage(src) {
 /* ---------- 设置 ---------- */
 const RECORDS_KEY = 'yujian_records_v1';
 const SETTINGS_KEY = 'yujian_settings_v1';
-const DEFAULT_SETTINGS = { stationName: '车辆检测站', inspector: '张三', province: '粤' };
+const DEFAULT_SETTINGS = { stationName: '车辆检测站', inspector: '张三' };
 
 let settings = loadSettings();
 
@@ -69,7 +69,7 @@ function applySettingsUI() {
 
 /* ---------- 记录 ---------- */
 let records = loadRecords();
-let currentPhoto = null; // 压缩后的照片 dataURL
+let currentPlatePhoto = null; // 车牌照片 dataURL（拍摄时裁剪方框区域）
 
 function loadRecords() {
   try {
@@ -112,9 +112,7 @@ function updateSeq() {
 
 /* ---------- 表单 ---------- */
 const plateInput = $('plateInput');
-const vehicleTypeInput = $('vehicleTypeInput');
 const plateError = $('plateError');
-const vehicleTypeError = $('vehicleTypeError');
 
 function plateValid(v) {
   return /^[\u4e00-\u9fa5][A-Z0-9]{4,7}$/.test(v);
@@ -125,22 +123,12 @@ function clearPlateError() {
   $('plateField').classList.remove('field-invalid');
 }
 
-function clearVehicleTypeError() {
-  vehicleTypeError.hidden = true;
-  $('vehicleTypeField').classList.remove('field-invalid');
-}
-
 function validateForm() {
   let ok = true;
   const plate = plateInput.value.trim().toUpperCase();
   if (!plateValid(plate)) {
     plateError.hidden = false;
     $('plateField').classList.add('field-invalid');
-    ok = false;
-  }
-  if (!vehicleTypeInput.value) {
-    vehicleTypeError.hidden = false;
-    $('vehicleTypeField').classList.add('field-invalid');
     ok = false;
   }
   return ok;
@@ -151,24 +139,16 @@ plateInput.addEventListener('input', function () {
   clearPlateError();
 });
 
-vehicleTypeInput.addEventListener('change', clearVehicleTypeError);
-
 function buildRecord() {
-  const items = Array.prototype.slice.call(document.querySelectorAll('input[name="items"]:checked')).map(function (i) { return i.value; });
   const seq = todayCount() + 1;
   return {
     id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     seq: seq,
     plateNo: plateInput.value.trim().toUpperCase(),
-    vehicleType: vehicleTypeInput.value,
-    fuel: $('fuelInput').value,
     gearbox: $('gearboxInput').value,
-    drivetrain: $('drivetrainInput').value,
+    exhaust: $('exhaustInput').value,
     mileage: $('mileageInput').value.trim(),
-    lineNo: $('lineNoInput').value.trim(),
-    items: items,
-    remark: $('remarkInput').value.trim(),
-    photo: currentPhoto,
+    platePhoto: currentPlatePhoto,
     inspector: settings.inspector,
     stationName: settings.stationName,
     createdAt: new Date().toISOString()
@@ -177,69 +157,10 @@ function buildRecord() {
 
 function resetForm() {
   $('form').reset();
-  currentPhoto = null;
-  const pv = $('photoPreview');
-  pv.src = '';
-  pv.hidden = true;
-  $('photoPlaceholder').hidden = false;
-  $('retakeBtn').hidden = true;
+  currentPlatePhoto = null;
   clearPlateError();
-  clearVehicleTypeError();
   updateSeq();
 }
-
-/* ---------- 照片压缩 ---------- */
-function compressPhoto(file) {
-  return new Promise(function (resolve, reject) {
-    const url = URL.createObjectURL(file);
-    loadImage(url).then(function (img) {
-      URL.revokeObjectURL(url);
-      const maxW = 900;
-      const w = Math.min(img.width, maxW);
-      const h = Math.round(img.height * w / img.width);
-      const c = document.createElement('canvas');
-      c.width = w;
-      c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL('image/jpeg', 0.72));
-    }).catch(function (e) {
-      URL.revokeObjectURL(url);
-      reject(e);
-    });
-  });
-}
-
-$('photoInput').addEventListener('change', function () {
-  const file = this.files[0];
-  const input = this;
-  if (!file) return;
-  compressPhoto(file).then(function (dataUrl) {
-    currentPhoto = dataUrl;
-    const pv = $('photoPreview');
-    pv.src = dataUrl;
-    pv.hidden = false;
-    $('photoPlaceholder').hidden = true;
-    $('retakeBtn').hidden = false;
-  }).catch(function () {
-    alert('照片读取失败，请重试');
-    input.value = '';
-  });
-});
-
-$('photoPreviewWrap').addEventListener('click', function () {
-  $('photoInput').click();
-});
-
-$('retakeBtn').addEventListener('click', function (e) {
-  e.stopPropagation();
-  $('photoInput').value = '';
-  currentPhoto = null;
-  const pv = $('photoPreview');
-  pv.src = '';
-  pv.hidden = true;
-  $('photoPlaceholder').hidden = false;
-  this.hidden = true;
-});
 
 /* ---------- 预检单卡片生成（Canvas） ---------- */
 const CARD_W = 750;
@@ -248,7 +169,7 @@ const CONTENT_W = CARD_W - PAD * 2; // 670
 const HEADER_H = 200;
 const PLATE_BOX = { x: PAD, y: 140, w: CONTENT_W, h: 110 };
 const PHOTO_W = CONTENT_W;
-const PHOTO_H = 502; // 约 4:3
+const PHOTO_H = 220; // 车牌照片约 4.6:1，完整显示
 const INFO_GAP = 34;
 const ROW_GAP = 22;
 const CELL_W = (CONTENT_W - ROW_GAP) / 2; // 324
@@ -268,11 +189,11 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function coverDraw(ctx, img, x, y, w, h) {
-  const scale = Math.max(w / img.width, h / img.height);
-  const sw = w / scale;
-  const sh = h / scale;
-  ctx.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, x, y, w, h);
+function containDraw(ctx, img, x, y, w, h) {
+  const scale = Math.min(w / img.width, h / img.height);
+  const dw = Math.round(img.width * scale);
+  const dh = Math.round(img.height * scale);
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
 /* 文本按宽度换行，最多 maxLines 行 */
@@ -308,14 +229,9 @@ function textLines(ctx, text, maxWidth, maxLines) {
 /* 计算卡片布局（先用临时 ctx 测量，返回行信息与总高） */
 function buildLayout(ctx, record, hasPhoto) {
   const fields = [
-    ['车辆类型', record.vehicleType || '—', false],
-    ['燃油类型', record.fuel || '—', false],
     ['变速器', record.gearbox || '—', false],
-    ['驱动形式', record.drivetrain || '—', false],
-    ['行驶公里数', record.mileage ? record.mileage + ' km' : '—', false],
-    ['检测项目', record.items && record.items.length ? record.items.join('、') : '—', false],
-    ['检测线', record.lineNo || '—', false],
-    ['备注', record.remark || '—', true]
+    ['排气管数量', record.exhaust || '—', false],
+    ['行驶公里数', record.mileage ? record.mileage + ' km' : '—', false]
   ];
   const rows = [];
   ctx.font = '600 ' + VALUE_FS + 'px ' + FONT;
@@ -383,10 +299,10 @@ function drawCell(ctx, field, lines, y, colIndex) {
 }
 
 async function generateImage(record) {
-  // 1. 载入照片（可能为空）
+  // 1. 载入车牌照片（可能为空）
   let photoImg = null;
-  if (record.photo) {
-    try { photoImg = await loadImage(record.photo); } catch (e) { photoImg = null; }
+  if (record.platePhoto) {
+    try { photoImg = await loadImage(record.platePhoto); } catch (e) { photoImg = null; }
   }
   // 2. 测量布局
   const scratch = document.createElement('canvas');
@@ -454,13 +370,13 @@ async function generateImage(record) {
   ctx.shadowOffsetY = 0;
   drawPlateText(ctx, (record.plateNo || '').toUpperCase(), pb);
 
-  // 照片
+  // 车牌照片
   if (photoImg) {
     const py = PLATE_BOX.y + PLATE_BOX.h + INFO_GAP;
     ctx.save();
     roundRect(ctx, PAD, py, PHOTO_W, PHOTO_H, 16);
     ctx.clip();
-    coverDraw(ctx, photoImg, PAD, py, PHOTO_W, PHOTO_H);
+    containDraw(ctx, photoImg, PAD, py, PHOTO_W, PHOTO_H);
     ctx.restore();
   }
 
@@ -571,14 +487,12 @@ $('previewModal').addEventListener('click', function (e) {
 $('settingsBtn').addEventListener('click', function () {
   $('stationNameInput').value = settings.stationName;
   $('inspectorInput').value = settings.inspector;
-  $('provinceInput').value = settings.province;
   $('settingsModal').hidden = false;
 });
 
 $('settingsSave').addEventListener('click', function () {
   settings.stationName = $('stationNameInput').value.trim() || DEFAULT_SETTINGS.stationName;
   settings.inspector = $('inspectorInput').value.trim() || DEFAULT_SETTINGS.inspector;
-  settings.province = $('provinceInput').value.trim() || DEFAULT_SETTINGS.province;
   saveSettings();
   applySettingsUI();
   $('settingsModal').hidden = true;
@@ -647,7 +561,7 @@ function renderRecords() {
 
     const sub = document.createElement('div');
     sub.className = 'record-sub';
-    sub.textContent = [item.vehicleType, (item.items || []).join('、'), item.lineNo].filter(Boolean).join(' · ');
+    sub.textContent = ['变速器：' + (item.gearbox || '—'), '排气管：' + (item.exhaust || '—'), '公里数：' + (item.mileage || '—')].join(' · ');
 
     const time = document.createElement('div');
     time.className = 'record-time';
@@ -694,12 +608,11 @@ function csvEscape(s) {
 
 function exportCSV() {
   const list = todayRecords();
-  const header = ['序号', '登记时间', '车牌号', '车辆类型', '燃油', '变速器', '驱动形式', '行驶公里数', '检测项目', '检测线', '备注', '预检员'];
+  const header = ['序号', '登记时间', '车牌号', '变速器', '排气管数量', '行驶公里数', '预检员'];
   const rows = list.map(function (r) {
     return [
-      r.seq, formatDateTime(r.createdAt), r.plateNo, r.vehicleType,
-      r.fuel || '', r.gearbox || '', r.drivetrain || '', r.mileage || '',
-      (r.items || []).join('、'), r.lineNo || '', r.remark || '', r.inspector || ''
+      r.seq, formatDateTime(r.createdAt), r.plateNo,
+      r.gearbox || '', r.exhaust || '', r.mileage || '', r.inspector || ''
     ];
   });
   const csv = '\uFEFF' + [header].concat(rows).map(function (row) {
@@ -740,127 +653,15 @@ document.querySelectorAll('.tab-btn').forEach(function (btn) {
 });
 
 /* ============================================================
- * 车牌识别（Tesseract.js 本地 OCR）
+ * 车牌照片拍摄（方框取景，拍照预览，不做识别）
  * ============================================================ */
-let ocrWorkerPromise = null;
 let ocrStream = null;
-let ocrInterval = null;
 let ocrBusy = false;
 let ocrClosed = true;
 let ocrMode = 'none'; // 'camera' | 'photo'
-let lastOcrCanvas = null;
 
 function setOcrStatus(msg) {
   $('ocrStatus').textContent = msg;
-}
-
-/* 懒加载识别引擎（单例） */
-function getOcrWorker() {
-  if (typeof Tesseract === 'undefined') {
-    return Promise.reject(new Error('OCR 引擎未加载，请确认 lib/tesseract 目录完整'));
-  }
-  if (!ocrWorkerPromise) {
-    ocrWorkerPromise = (async function () {
-      setOcrStatus('正在加载识别引擎（首次约10MB）…');
-      const worker = await Tesseract.createWorker('eng', 1, {
-        workerPath: 'lib/tesseract/worker.min.js',
-        corePath: 'lib/tesseract/',
-        langPath: 'lib/tesseract/',
-        gzip: false,
-        logger: function () { /* 进度日志忽略 */ }
-      });
-      // 只识别字母和数字：省份汉字由设置中的省字补全
-      await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-        tessedit_pageseg_mode: '7'
-      });
-      setOcrStatus('识别引擎就绪');
-      return worker;
-    })().catch(function (err) {
-      ocrWorkerPromise = null;
-      throw err;
-    });
-  }
-  return ocrWorkerPromise;
-}
-
-/* 从 OCR 文本中提取最长的一段字母数字（车牌主体） */
-function findPlateMatch(cleaned) {
-  if (!cleaned) return null;
-  let best = null;
-  const re = /[A-Z][A-Z0-9]{4,6}/g;
-  let m;
-  while ((m = re.exec(cleaned)) !== null) {
-    if (!best || m[0].length > best.length) best = m[0];
-  }
-  return best;
-}
-
-/* 图像预处理：裁剪取景框区域，放大，灰度+对比度增强 */
-function prepareOcrCanvas(source, cropRect) {
-  const sw = source.width;
-  const sh = source.height;
-  let crop;
-  if (cropRect && cropRect.w > 4 && cropRect.h > 4) {
-    crop = cropRect;
-  } else {
-    const cw = sw * 0.86;
-    const ch = cw / 4.6;
-    crop = { x: (sw - cw) / 2, y: (sh - ch) / 2, w: cw, h: ch };
-  }
-  const x = Math.max(0, crop.x);
-  const y = Math.max(0, crop.y);
-  const w = Math.min(crop.w, sw - x);
-  const h = Math.min(crop.h, sh - y);
-  if (w < 4 || h < 4) return null;
-  const outW = 560;
-  const outH = Math.max(1, Math.round(h / w * outW));
-  const c = document.createElement('canvas');
-  c.width = outW;
-  c.height = outH;
-  const ctx = c.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(source, x, y, w, h, 0, 0, outW, outH);
-  // 灰度 + 对比度
-  const imgData = ctx.getImageData(0, 0, outW, outH);
-  const d = imgData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    let v = (g - 128) * 1.6 + 128;
-    v = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
-    d[i] = v;
-    d[i + 1] = v;
-    d[i + 2] = v;
-  }
-  ctx.putImageData(imgData, 0, 0);
-  return c;
-}
-
-/* 识别车牌：返回 { plate, raw } 或 null */
-async function recognizePlate(imgSource, cropRect) {
-  try {
-    const worker = await getOcrWorker();
-    const canvas = prepareOcrCanvas(imgSource, cropRect);
-    if (!canvas) return null;
-    const result = await worker.recognize(canvas);
-    const text = (result && result.data && result.data.text) || '';
-    const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const match = findPlateMatch(cleaned);
-    if (!match) return null;
-    const province = (settings.province || '粤').trim();
-    return { plate: province + match, raw: cleaned };
-  } catch (err) {
-    setOcrStatus('识别引擎加载失败：请确认 lib/tesseract 目录完整，并通过 http(s) 访问本页面');
-    return null;
-  }
-}
-
-/* ---------- 摄像头 ---------- */
-function captureVideoFrame() {
-  const c = document.createElement('canvas');
-  c.width = $('ocrVideo').videoWidth || 640;
-  c.height = $('ocrVideo').videoHeight || 480;
-  c.getContext('2d').drawImage($('ocrVideo'), 0, 0);
-  return c;
 }
 
 /* 把屏幕上取景框的位置换算成视频源像素坐标 */
@@ -884,11 +685,13 @@ function getGuideRect() {
   };
 }
 
-function stopAutoCapture() {
-  if (ocrInterval) {
-    clearInterval(ocrInterval);
-    ocrInterval = null;
-  }
+function captureVideoFrame() {
+  const video = $('ocrVideo');
+  const c = document.createElement('canvas');
+  c.width = video.videoWidth || 640;
+  c.height = video.videoHeight || 480;
+  c.getContext('2d').drawImage(video, 0, 0);
+  return c;
 }
 
 function stopStream() {
@@ -899,95 +702,85 @@ function stopStream() {
   $('ocrVideo').srcObject = null;
 }
 
-async function ocrTick() {
-  if (ocrBusy || ocrClosed) return;
-  ocrBusy = true;
-  try {
-    const rect = getGuideRect();
-    if (!rect) {
-      setOcrStatus('正在启动摄像头…');
-      return;
-    }
-    setOcrStatus('正在识别…');
-    const frame = captureVideoFrame();
-    const res = await recognizePlate(frame, rect);
-    if (res) {
-      stopAutoCapture();
-      showOcrResult(res.plate);
-    } else {
-      setOcrStatus('未识别到车牌，请对准车牌…');
-    }
-  } catch (e) {
-    setOcrStatus('识别出错，请重试');
-  } finally {
-    ocrBusy = false;
-  }
+/* 裁剪方框区域并等比放大，返回压缩后的 dataURL */
+function cropPlatePhoto(source, rect) {
+  const x = Math.max(0, Math.round(rect.x));
+  const y = Math.max(0, Math.round(rect.y));
+  const w = Math.min(Math.round(rect.w), source.width - x);
+  const h = Math.min(Math.round(rect.h), source.height - y);
+  const c = document.createElement('canvas');
+  const targetW = 800;
+  c.width = targetW;
+  c.height = Math.max(1, Math.round(targetW * h / w));
+  const ctx = c.getContext('2d');
+  ctx.drawImage(source, x, y, w, h, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8);
 }
 
-function startAutoCapture() {
-  stopAutoCapture();
-  ocrInterval = setInterval(ocrTick, 1800);
-  setTimeout(function () { if (!ocrClosed) ocrTick(); }, 900);
-}
-
-function showOcrResult(plate) {
-  $('ocrResult').value = plate;
+function showOcrShot(dataUrl) {
+  currentPlatePhoto = dataUrl;
+  $('ocrShot').src = dataUrl;
+  $('ocrVideoWrap').hidden = true;
+  $('ocrShotWrap').hidden = false;
   $('ocrResultRow').hidden = false;
-  setOcrStatus('识别到：请确认');
+  $('ocrPhotoBtn').hidden = true;
+  $('ocrAlbumBtn').hidden = true;
+  setOcrStatus('已拍摄，请按照片填写车牌号');
+  $('ocrResult').focus();
 }
 
 function showOcrFallback(msg) {
   ocrMode = 'photo';
   $('ocrFallbackMsg').textContent = msg;
   $('ocrFallback').hidden = false;
+  $('ocrAlbumBtn').hidden = false;
   setOcrStatus('');
 }
 
-async function openOcrModal() {
+function openOcrModal() {
   ocrClosed = false;
   ocrBusy = false;
-  stopAutoCapture();
   stopStream();
-  lastOcrCanvas = null;
   $('ocrResultRow').hidden = true;
+  $('ocrShotWrap').hidden = true;
   $('ocrFallback').hidden = true;
-  $('ocrVideoWrap').hidden = true;
   $('ocrPhotoBtn').hidden = true;
-  setOcrStatus('正在准备…');
+  $('ocrAlbumBtn').hidden = true;
+  $('ocrResult').value = '';
+  setOcrStatus('请将车牌对准方框，点击拍照');
   $('ocrModal').hidden = false;
 
   const canCamera = window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
   if (!canCamera) {
-    showOcrFallback('当前环境无法调用摄像头（需 https 或 localhost）。请直接拍照识别：');
+    showOcrFallback('当前环境无法调用摄像头（需 https 或 localhost）。请从相册选择车牌照片：');
     return;
   }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+  }).then(function (stream) {
+    if (ocrClosed) {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      return;
+    }
     ocrStream = stream;
     $('ocrVideo').srcObject = stream;
-    await $('ocrVideo').play();
+    return $('ocrVideo').play();
+  }).then(function () {
+    if (ocrClosed) return;
     ocrMode = 'camera';
     $('ocrVideoWrap').hidden = false;
     $('ocrPhotoBtn').hidden = false;
-    setOcrStatus('正在启动摄像头…');
-    startAutoCapture();
-  } catch (err) {
-    showOcrFallback('无法调用摄像头（' + (err && err.message ? err.message : '设备不可用') + '）。请直接拍照识别：');
-  }
+    setOcrStatus('请将车牌对准方框，点击拍照');
+  }).catch(function (err) {
+    showOcrFallback('无法调用摄像头（' + (err && err.message ? err.message : '设备不可用') + '）。请从相册选择车牌照片：');
+  });
 }
 
 function closeModalOcr() {
   ocrClosed = true;
   ocrBusy = false;
-  stopAutoCapture();
   stopStream();
   $('ocrModal').hidden = true;
-  $('ocrResultRow').hidden = true;
-  $('ocrVideoWrap').hidden = true;
-  $('ocrFallback').hidden = true;
-  $('ocrPhotoBtn').hidden = true;
 }
 
 $('ocrBtn').addEventListener('click', openOcrModal);
@@ -996,83 +789,63 @@ $('ocrModal').addEventListener('click', function (e) {
   if (e.target === this) closeModalOcr();
 });
 
-/* 手动拍照识别 */
-$('ocrPhotoBtn').addEventListener('click', async function () {
-  stopAutoCapture();
+/* 拍照：截取当前帧并按方框裁剪 */
+$('ocrPhotoBtn').addEventListener('click', function () {
   if (ocrBusy) return;
   ocrBusy = true;
-  setOcrStatus('正在识别…');
   try {
     const rect = getGuideRect();
     const frame = captureVideoFrame();
-    const res = await recognizePlate(frame, rect);
-    if (res) {
-      stopAutoCapture();
-      showOcrResult(res.plate);
+    let dataUrl;
+    if (rect && rect.w > 4 && rect.h > 4) {
+      dataUrl = cropPlatePhoto(frame, rect);
     } else {
-      setOcrStatus('未识别到车牌，请重新对准再拍');
-      startAutoCapture();
+      dataUrl = frame.toDataURL('image/jpeg', 0.8);
     }
+    showOcrShot(dataUrl);
+    stopStream();
   } finally {
     ocrBusy = false;
   }
 });
 
-/* 拍照/选图兜底 */
-$('ocrFallbackBtn').addEventListener('click', function () {
-  $('ocrFileInput').click();
+/* 相册选图 */
+$('ocrAlbumBtn').addEventListener('click', function () {
+  $('ocrAlbumInput').click();
 });
 
-$('ocrFileInput').addEventListener('change', async function () {
+$('ocrAlbumInput').addEventListener('change', function () {
   const file = this.files[0];
   this.value = '';
   if (!file || ocrBusy) return;
   ocrBusy = true;
-  setOcrStatus('正在识别…');
-  try {
-    const url = URL.createObjectURL(file);
-    let img;
-    try {
-      img = await loadImage(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    const maxW = 1280;
+  setOcrStatus('正在读取照片…');
+  const url = URL.createObjectURL(file);
+  loadImage(url).then(function (img) {
+    URL.revokeObjectURL(url);
+    const maxW = 1200;
     const w = Math.min(img.width, maxW);
     const h = Math.round(img.height * w / img.width);
     const c = document.createElement('canvas');
     c.width = w;
     c.height = h;
     c.getContext('2d').drawImage(img, 0, 0, w, h);
-    lastOcrCanvas = c;
-    const res = await recognizePlate(c);
-    if (res) {
-      showOcrResult(res.plate);
-    } else {
-      setOcrStatus('未识别到车牌，请重新拍照');
-    }
-  } catch (e) {
-    setOcrStatus('图片读取失败，请重试');
-  } finally {
+    $('ocrFallback').hidden = true;
+    showOcrShot(c.toDataURL('image/jpeg', 0.8));
+  }).catch(function () {
+    URL.revokeObjectURL(url);
+    setOcrStatus('照片读取失败，请重试');
+  }).finally(function () {
     ocrBusy = false;
-  }
+  });
 });
 
-/* 重新识别 */
+/* 重拍 */
 $('ocrRetryBtn').addEventListener('click', function () {
   $('ocrResultRow').hidden = true;
-  if (ocrMode === 'camera' && $('ocrVideo').srcObject) {
-    startAutoCapture();
-  } else if (lastOcrCanvas) {
-    ocrBusy = true;
-    setOcrStatus('正在识别…');
-    recognizePlate(lastOcrCanvas).then(function (res) {
-      if (res) showOcrResult(res.plate);
-      else setOcrStatus('未识别到车牌，请重新拍照');
-    }).finally(function () {
-      ocrBusy = false;
-    });
-  }
+  $('ocrShotWrap').hidden = true;
+  currentPlatePhoto = null;
+  openOcrModal();
 });
 
 /* 确认填写 */
@@ -1082,13 +855,8 @@ $('ocrConfirmBtn').addEventListener('click', function () {
   plateInput.value = val;
   clearPlateError();
   closeModalOcr();
-  vehicleTypeInput.focus();
 });
-
-/* 测试钩子（供自动化验证使用） */
-window.__yujianTest = { recognizePlate: recognizePlate, prepareOcrCanvas: prepareOcrCanvas };
 
 /* ---------- 初始化 ---------- */
 applySettingsUI();
 updateSeq();
-renderRecords();

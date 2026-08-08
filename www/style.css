@@ -628,16 +628,25 @@ input[type="number"]::-webkit-inner-spin-button {
     linear-gradient(-45deg, rgba(255, 255, 255, .9) 46%, transparent 46%) no-repeat right bottom / 22px 22px;
 }
 
-.ocr-status {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, .6);
-  color: #fff;
+.ocr-status-top {
   font-size: 14px;
+  color: var(--text-2);
   text-align: center;
-  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+
+.ocr-shot-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  margin-bottom: 12px;
+}
+
+.ocr-shot-wrap img {
+  width: 100%;
+  display: block;
 }
 
 .ocr-fallback {
