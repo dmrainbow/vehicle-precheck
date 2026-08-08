@@ -218,7 +218,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .plate-photo-wrap img {
   flex: 1;
   min-width: 0;
-  max-width: 260px;
+  width: 100%;
   border-radius: 10px;
   border: 1px solid #cfd8e3;
 }
@@ -636,10 +636,10 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .ocr-guide {
   position: absolute;
-  left: 2%;
-  right: 2%;
+  left: 1%;
+  right: 1%;
   top: 46%;
-  height: 16%;
+  height: 22%;
   transform: translateY(-50%);
   border: 3px solid rgba(90, 200, 250, .95);
   border-radius: 10px;

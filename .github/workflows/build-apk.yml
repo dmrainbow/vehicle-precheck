@@ -26,7 +26,7 @@ jobs:
       - name: Init Capacitor
         run: |
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/share
 
       - name: Add Android platform
         run: npx cap add android

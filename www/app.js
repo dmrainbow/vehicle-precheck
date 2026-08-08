@@ -418,6 +418,13 @@ $('form').addEventListener('submit', async function (e) {
     saveRecords();
     updateSeq();
     showPreview(dataUrl, record);
+    // 生成后自动弹系统分享面板（可分享到微信群）
+    fetch(dataUrl).then(function (r) { return r.blob(); }).then(function (blob) {
+      lastCardFile = new File([blob], '预检单.png', { type: 'image/png' });
+      shareCard(dataUrl);
+    }).catch(function () {
+      shareCard(dataUrl);
+    });
   } catch (err) {
     alert('生成失败：' + (err && err.message ? err.message : '未知错误'));
   } finally {
@@ -443,8 +450,19 @@ function showPreview(dataUrl, record) {
   $('previewModal').hidden = false;
 }
 
-/* 分享：优先系统分享面板（可勾选微信），微信内则引导长按发送 */
-$('shareBtn').addEventListener('click', function () {
+/* 分享：优先 Capacitor Share 原生插件（系统分享面板，可分享到微信），
+ * 其次 Web Share API，都不支持则返回 false（由调用方决定提示） */
+function shareCard(dataUrl) {
+  const cap = window.Capacitor;
+  const sharePlugin = cap && cap.Plugins && cap.Plugins.Share;
+  if (sharePlugin) {
+    sharePlugin.share({
+      title: '车辆预检单',
+      dialogTitle: '分享预检单',
+      files: [dataUrl]
+    }).catch(function () { /* 用户取消分享 */ });
+    return;
+  }
   const isWechat = /MicroMessenger/i.test(navigator.userAgent);
   if (!isWechat && navigator.share && navigator.canShare && lastCardFile &&
       navigator.canShare({ files: [lastCardFile] })) {
@@ -454,8 +472,12 @@ $('shareBtn').addEventListener('click', function () {
   const tip = $('shareTip');
   tip.textContent = isWechat
     ? '① 长按上方卡片图片　② 选择「发送给朋友」　③ 选择微信群聊'
-    : '当前浏览器不支持直接分享，请点「保存图片」存入相册后，再到微信中发送给群聊';
+    : '当前环境不支持直接分享，请点「保存图片」存入相册后，再到微信中发送给群聊';
   tip.hidden = false;
+}
+
+$('shareBtn').addEventListener('click', function () {
+  shareCard($('previewImg').src);
 });
 
 $('againBtn').addEventListener('click', function () {
