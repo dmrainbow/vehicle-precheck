@@ -720,13 +720,8 @@ function cropPlatePhoto(source, rect) {
 
 function showOcrShot(dataUrl) {
   currentPlatePhoto = dataUrl;
-  $('ocrShot').src = dataUrl;
-  $('ocrVideoWrap').hidden = true;
-  $('ocrShotWrap').hidden = false;
-  $('ocrResultRow').hidden = false;
-  $('ocrPhotoBtn').hidden = true;
-  $('ocrAlbumBtn').hidden = true;
-  setOcrStatus('已拍摄');
+  showFormPlatePhoto(dataUrl);
+  closeModalOcr();
 }
 
 function showOcrFallback(msg) {
@@ -741,8 +736,6 @@ function openOcrModal() {
   ocrClosed = false;
   ocrBusy = false;
   stopStream();
-  $('ocrResultRow').hidden = true;
-  $('ocrShotWrap').hidden = true;
   $('ocrFallback').hidden = true;
   $('ocrPhotoBtn').hidden = true;
   $('ocrAlbumBtn').hidden = true;
@@ -755,7 +748,7 @@ function openOcrModal() {
     return;
   }
   navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
   }).then(function (stream) {
     if (ocrClosed) {
       stream.getTracks().forEach(function (t) { t.stop(); });
@@ -839,20 +832,7 @@ $('ocrAlbumInput').addEventListener('change', function () {
   });
 });
 
-/* 重拍 */
-$('ocrRetryBtn').addEventListener('click', function () {
-  $('ocrResultRow').hidden = true;
-  $('ocrShotWrap').hidden = true;
-  openOcrModal();
-});
-
-/* 确认使用：照片作为车牌号展示 */
-$('ocrConfirmBtn').addEventListener('click', function () {
-  if (!currentPlatePhoto) return;
-  showFormPlatePhoto(currentPlatePhoto);
-  clearPlateError();
-  closeModalOcr();
-});
+/* 重拍/确认已在主界面处理（表单上有重拍按钮） */
 
 /* ---------- 初始化 ---------- */
 applySettingsUI();
