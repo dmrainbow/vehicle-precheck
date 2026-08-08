@@ -12,3 +12,21 @@ if (!s.includes('android.permission.CAMERA')) {
 } else {
   console.log('[patch] CAMERA permission already present');
 }
+
+// 修复 kotlin-stdlib 重复类（新 Capacitor 用 kotlin-stdlib 1.8+，旧依赖仍带 jdk7/jdk8 构件）
+const gradleFile = 'android/build.gradle';
+let g = fs.readFileSync(gradleFile, 'utf8');
+const kotlinExclude = `
+subprojects {
+    configurations.all {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+    }
+}
+`;
+if (!g.includes('kotlin-stdlib-jdk7')) {
+  fs.writeFileSync(gradleFile, g + kotlinExclude);
+  console.log('[patch] kotlin-stdlib duplicate classes excluded');
+} else {
+  console.log('[patch] kotlin-stdlib exclude already present');
+}
