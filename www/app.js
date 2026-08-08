@@ -450,17 +450,31 @@ function showPreview(dataUrl, record) {
   $('previewModal').hidden = false;
 }
 
-/* 分享：优先 Capacitor Share 原生插件（系统分享面板，可分享到微信），
+/* 分享：优先 Capacitor 原生（先把图片写入缓存文件，再走系统分享面板，可分享到微信），
  * 其次 Web Share API，都不支持则返回 false（由调用方决定提示） */
-function shareCard(dataUrl) {
+async function shareCard(dataUrl) {
   const cap = window.Capacitor;
   const sharePlugin = cap && cap.Plugins && cap.Plugins.Share;
   if (sharePlugin) {
-    sharePlugin.share({
-      title: '车辆预检单',
-      dialogTitle: '分享预检单',
-      files: [dataUrl]
-    }).catch(function () { /* 用户取消分享 */ });
+    try {
+      let shareFiles = [dataUrl];
+      const fs = cap.Plugins.Filesystem;
+      if (fs) {
+        const b64 = String(dataUrl).split(',')[1];
+        const res = await fs.writeFile({
+          path: 'precheck/card.png',
+          data: b64,
+          directory: 'CACHE',
+          recursive: true
+        });
+        shareFiles = [res.uri];
+      }
+      await sharePlugin.share({
+        title: '车辆预检单',
+        dialogTitle: '分享预检单',
+        files: shareFiles
+      });
+    } catch (e) { /* 用户取消或分享失败 */ }
     return;
   }
   const isWechat = /MicroMessenger/i.test(navigator.userAgent);
