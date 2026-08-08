@@ -1,0 +1,10 @@
+{
+  "name": "vehicle-precheck",
+  "version": "1.0.0",
+  "description": "车辆预检单登记工具（检测站预检员用）",
+  "private": true,
+  "scripts": {
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android"
+  }
+}

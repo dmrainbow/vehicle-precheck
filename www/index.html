@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a3a5c">
+  <title>车辆预检登记</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-title">
+        <h1 id="topStationName">车辆检测站</h1>
+        <p>车辆预检登记</p>
+      </div>
+      <button type="button" id="settingsBtn" class="btn-ghost-light">设置</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- ========== 录入 ========== -->
+    <section id="pageInput" class="page">
+      <form id="form" novalidate>
+        <div class="card">
+
+          <div class="field" id="plateField">
+            <label for="plateInput">车牌号 <span class="req">*</span></label>
+            <div class="plate-row">
+              <input type="text" id="plateInput" placeholder="如：粤A12345" autocomplete="off" maxlength="9">
+              <button type="button" id="ocrBtn" class="btn-ocr">识别车牌</button>
+            </div>
+            <div class="field-error" id="plateError" hidden>请输入正确格式的车牌号</div>
+          </div>
+
+          <div class="field" id="vehicleTypeField">
+            <label for="vehicleTypeInput">车辆类型 <span class="req">*</span></label>
+            <select id="vehicleTypeInput">
+              <option value="">请选择车辆类型</option>
+              <option>小型轿车</option>
+              <option>SUV</option>
+              <option>小型客车</option>
+              <option>中型客车</option>
+              <option>大型客车</option>
+              <option>轻型货车</option>
+              <option>中型货车</option>
+              <option>重型货车</option>
+              <option>摩托车</option>
+              <option>其他</option>
+            </select>
+            <div class="field-error" id="vehicleTypeError" hidden>请选择车辆类型</div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="fuelInput">燃油类型</label>
+              <select id="fuelInput">
+                <option value="">请选择</option>
+                <option>汽油</option>
+                <option>柴油</option>
+                <option>纯电动</option>
+                <option>混动</option>
+                <option>天然气</option>
+                <option>其他</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="gearboxInput">变速器</label>
+              <select id="gearboxInput">
+                <option value="">请选择</option>
+                <option>手动挡</option>
+                <option>自动挡</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="drivetrainInput">驱动形式</label>
+              <select id="drivetrainInput">
+                <option value="">请选择</option>
+                <option>前驱</option>
+                <option>后驱</option>
+                <option>四驱</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="mileageInput">行驶公里数</label>
+              <div class="input-unit">
+                <input type="number" id="mileageInput" inputmode="numeric" placeholder="如 120000" min="0" step="1">
+                <span class="unit">km</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="lineNoInput">检测线</label>
+            <input type="text" id="lineNoInput" placeholder="如：1号线" maxlength="12">
+          </div>
+
+          <div class="field">
+            <label>预检项目</label>
+            <div class="chip-group">
+              <label class="chip"><input type="checkbox" name="items" value="外检"><span>外检</span></label>
+              <label class="chip"><input type="checkbox" name="items" value="安检"><span>安检</span></label>
+              <label class="chip"><input type="checkbox" name="items" value="环检"><span>环检</span></label>
+              <label class="chip"><input type="checkbox" name="items" value="综检"><span>综检</span></label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>车辆照片</label>
+            <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+            <div id="photoPreviewWrap" class="photo-wrap">
+              <img id="photoPreview" alt="车辆照片预览" hidden>
+              <div id="photoPlaceholder" class="photo-placeholder">点击拍摄或选择车辆照片</div>
+              <button type="button" id="retakeBtn" class="btn-small" hidden>重拍</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="remarkInput">备注</label>
+            <textarea id="remarkInput" rows="2" placeholder="选填" maxlength="100"></textarea>
+          </div>
+
+          <div class="meta-row">
+            <span>今日序号：<strong id="seqDisplay">1</strong></span>
+            <span id="inspectorMeta"></span>
+          </div>
+
+        </div>
+
+        <button type="submit" id="generateBtn" class="btn-primary btn-block">生成预检单</button>
+      </form>
+    </section>
+
+    <!-- ========== 今日记录 ========== -->
+    <section id="pageRecords" class="page" hidden>
+      <div class="list-toolbar">
+        <span id="listCount" class="list-count">今日 0 台</span>
+        <button type="button" id="exportBtn" class="btn-outline">导出Excel</button>
+        <button type="button" id="clearBtn" class="btn-outline-danger">清空今日</button>
+      </div>
+      <div id="recordList" class="record-list"></div>
+      <div id="emptyState" class="empty">今日暂无预检记录</div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar">
+    <button type="button" class="tab-btn active" data-tab="input">录入</button>
+    <button type="button" class="tab-btn" data-tab="records">今日记录</button>
+  </nav>
+
+  <!-- ========== 预检单预览 ========== -->
+  <div id="previewModal" class="modal" hidden>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>预检单已生成</h2>
+        <button type="button" id="previewClose" class="btn-close">关闭</button>
+      </div>
+      <div class="preview-scroll">
+        <div class="card-frame"><img id="previewImg" alt="预检单卡片"></div>
+        <p class="hint">长按图片可直发微信群，或点下方分享按钮</p>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="shareBtn" class="btn-primary btn-block">分享到微信群</button>
+        <a id="saveBtn" class="btn-outline btn-block" download>保存图片</a>
+        <button type="button" id="againBtn" class="btn-outline btn-block">再录一台</button>
+        <button type="button" id="doneBtn" class="btn-secondary btn-block">完成</button>
+      </div>
+      <p id="shareTip" class="share-tip" hidden></p>
+    </div>
+  </div>
+
+  <!-- ========== 设置 ========== -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <h2>设置</h2>
+        <button type="button" id="settingsClose" class="btn-close">关闭</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="stationNameInput">检测站名称</label>
+          <input type="text" id="stationNameInput" maxlength="30" placeholder="车辆检测站">
+        </div>
+        <div class="field">
+          <label for="inspectorInput">预检员姓名</label>
+          <input type="text" id="inspectorInput" maxlength="20" placeholder="张三">
+        </div>
+        <div class="field">
+          <label for="provinceInput">车牌省份字（用于识别车牌）</label>
+          <input type="text" id="provinceInput" maxlength="2" placeholder="粤">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="settingsSave" class="btn-primary btn-block">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 确认框 ========== -->
+  <div id="confirmModal" class="modal" hidden>
+    <div class="modal-panel modal-sm">
+      <div class="modal-head">
+        <h2>提示</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMsg"></p>
+      </div>
+      <div class="modal-actions modal-actions-row">
+        <button type="button" id="confirmCancel" class="btn-secondary">取消</button>
+        <button type="button" id="confirmOk" class="btn-danger">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 车牌识别 ========== -->
+  <div id="ocrModal" class="modal" hidden>
+    <div class="modal-panel ocr-panel">
+      <div class="modal-head">
+        <h2>识别车牌</h2>
+        <button type="button" id="ocrCancelBtn" class="btn-close">关闭</button>
+      </div>
+
+      <div class="ocr-body">
+        <div id="ocrVideoWrap" class="ocr-video-wrap" hidden>
+          <video id="ocrVideo" autoplay playsinline muted></video>
+          <div id="ocrGuide" class="ocr-guide"></div>
+          <div id="ocrStatus" class="ocr-status">正在准备…</div>
+        </div>
+
+        <div id="ocrFallback" class="ocr-fallback" hidden>
+          <p id="ocrFallbackMsg">当前环境无法调用摄像头。请直接拍照识别：</p>
+          <button type="button" id="ocrFallbackBtn" class="btn-primary btn-block">拍照 / 选择照片</button>
+        </div>
+
+        <div id="ocrResultRow" class="ocr-result" hidden>
+          <label for="ocrResult">识别结果（可修改）</label>
+          <input type="text" id="ocrResult" maxlength="9">
+          <div class="modal-actions modal-actions-row">
+            <button type="button" id="ocrRetryBtn" class="btn-secondary">重新识别</button>
+            <button type="button" id="ocrConfirmBtn" class="btn-primary">确认填写</button>
+          </div>
+        </div>
+
+        <button type="button" id="ocrPhotoBtn" class="btn-primary btn-block" hidden>拍照识别</button>
+      </div>
+
+      <input type="file" id="ocrFileInput" accept="image/*" capture="environment" hidden>
+    </div>
+  </div>
+
+  <script src="lib/tesseract/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

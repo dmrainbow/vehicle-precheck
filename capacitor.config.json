@@ -1,0 +1,8 @@
+{
+  "appId": "com.yujian.precheck",
+  "appName": "车辆预检",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

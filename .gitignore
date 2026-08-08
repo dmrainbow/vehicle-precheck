@@ -1,0 +1,11 @@
+node_modules/
+android/
+dist/
+*.log
+.DS_Store
+
+# 根目录旧副本（源码在 www/）
+/app.js
+/index.html
+/style.css
+/lib/
