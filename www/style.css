@@ -208,6 +208,26 @@ input[type="number"]::-webkit-inner-spin-button {
   background: var(--primary-light);
 }
 
+/* 车牌照片预览（表单） */
+.plate-photo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plate-photo-wrap img {
+  flex: 1;
+  min-width: 0;
+  max-width: 260px;
+  border-radius: 10px;
+  border: 1px solid #cfd8e3;
+}
+
+.plate-photo-wrap .btn-ocr {
+  padding: 0 14px;
+  min-height: 44px;
+}
+
 /* 复选 chips */
 .chip-group {
   display: flex;
@@ -423,6 +443,14 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 18px;
   font-weight: 700;
   color: var(--primary);
+}
+
+.record-plate-photo {
+  width: 120px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #cfd8e3;
 }
 
 .record-seq {

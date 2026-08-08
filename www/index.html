@@ -27,12 +27,12 @@
         <div class="card">
 
           <div class="field" id="plateField">
-            <label for="plateInput">车牌号 <span class="req">*</span></label>
-            <div class="plate-row">
-              <input type="text" id="plateInput" placeholder="如：粤A12345" autocomplete="off" maxlength="9">
-              <button type="button" id="ocrBtn" class="btn-ocr">拍车牌照</button>
+            <label>车牌照片 <span class="req">*</span></label>
+            <div class="plate-photo-wrap">
+              <img id="platePhotoPreview" alt="车牌照片预览" hidden>
+              <button type="button" id="ocrBtn" class="btn-ocr">拍摄车牌照片</button>
             </div>
-            <div class="field-error" id="plateError" hidden>请输入正确格式的车牌号</div>
+            <div class="field-error" id="plateError" hidden>请先拍摄车牌照片</div>
           </div>
 
           <div class="field">
@@ -178,11 +178,9 @@
         </div>
 
         <div id="ocrResultRow" class="ocr-result" hidden>
-          <label for="ocrResult">车牌号（按照片填写）</label>
-          <input type="text" id="ocrResult" maxlength="9" placeholder="如：粤A12345" autocomplete="off">
           <div class="modal-actions modal-actions-row">
             <button type="button" id="ocrRetryBtn" class="btn-secondary">重拍</button>
-            <button type="button" id="ocrConfirmBtn" class="btn-primary">确认填写</button>
+            <button type="button" id="ocrConfirmBtn" class="btn-primary">确认使用</button>
           </div>
         </div>
 

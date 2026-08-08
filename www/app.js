@@ -111,12 +111,7 @@ function updateSeq() {
 }
 
 /* ---------- 表单 ---------- */
-const plateInput = $('plateInput');
 const plateError = $('plateError');
-
-function plateValid(v) {
-  return /^[\u4e00-\u9fa5][A-Z0-9]{4,7}$/.test(v);
-}
 
 function clearPlateError() {
   plateError.hidden = true;
@@ -125,8 +120,7 @@ function clearPlateError() {
 
 function validateForm() {
   let ok = true;
-  const plate = plateInput.value.trim().toUpperCase();
-  if (!plateValid(plate)) {
+  if (!currentPlatePhoto) {
     plateError.hidden = false;
     $('plateField').classList.add('field-invalid');
     ok = false;
@@ -134,17 +128,19 @@ function validateForm() {
   return ok;
 }
 
-plateInput.addEventListener('input', function () {
-  plateInput.value = plateInput.value.toUpperCase();
-  clearPlateError();
-});
+function showFormPlatePhoto(dataUrl) {
+  currentPlatePhoto = dataUrl;
+  $('platePhotoPreview').src = dataUrl;
+  $('platePhotoPreview').hidden = false;
+  $('ocrBtn').textContent = '重拍车牌照片';
+}
 
 function buildRecord() {
   const seq = todayCount() + 1;
   return {
     id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     seq: seq,
-    plateNo: plateInput.value.trim().toUpperCase(),
+    plateNo: '',
     gearbox: $('gearboxInput').value,
     exhaust: $('exhaustInput').value,
     mileage: $('mileageInput').value.trim(),
@@ -158,6 +154,9 @@ function buildRecord() {
 function resetForm() {
   $('form').reset();
   currentPlatePhoto = null;
+  $('platePhotoPreview').src = '';
+  $('platePhotoPreview').hidden = true;
+  $('ocrBtn').textContent = '拍摄车牌照片';
   clearPlateError();
   updateSeq();
 }
@@ -167,9 +166,7 @@ const CARD_W = 750;
 const PAD = 40;
 const CONTENT_W = CARD_W - PAD * 2; // 670
 const HEADER_H = 200;
-const PLATE_BOX = { x: PAD, y: 140, w: CONTENT_W, h: 110 };
-const PHOTO_W = CONTENT_W;
-const PHOTO_H = 220; // 车牌照片约 4.6:1，完整显示
+const PLATE_BOX = { x: PAD, y: 130, w: CONTENT_W, h: 150 };
 const INFO_GAP = 34;
 const ROW_GAP = 22;
 const CELL_W = (CONTENT_W - ROW_GAP) / 2; // 324
@@ -227,7 +224,7 @@ function textLines(ctx, text, maxWidth, maxLines) {
 }
 
 /* 计算卡片布局（先用临时 ctx 测量，返回行信息与总高） */
-function buildLayout(ctx, record, hasPhoto) {
+function buildLayout(ctx, record) {
   const fields = [
     ['变速器', record.gearbox || '—', false],
     ['排气管数量', record.exhaust || '—', false],
@@ -250,7 +247,6 @@ function buildLayout(ctx, record, hasPhoto) {
     });
   }
   let y = PLATE_BOX.y + PLATE_BOX.h + INFO_GAP;
-  if (hasPhoto) y += PHOTO_H + INFO_GAP;
   const rowYs = [];
   for (let i = 0; i < rows.length; i++) {
     rows[i].y = y;
@@ -309,7 +305,7 @@ async function generateImage(record) {
   scratch.width = 1;
   scratch.height = 1;
   const sctx = scratch.getContext('2d');
-  const layout = buildLayout(sctx, record, !!photoImg);
+  const layout = buildLayout(sctx, record);
   // 3. 绘制
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const canvas = document.createElement('canvas');
@@ -357,7 +353,7 @@ async function generateImage(record) {
   ctx.textAlign = 'center';
   ctx.fillText(seqText, bx + bw / 2, 64);
 
-  // 车牌框
+  // 车牌框：有照片直接显示照片，无照片显示车牌文本（兼容旧记录）
   const pb = PLATE_BOX;
   ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(15,40,70,0.35)';
@@ -368,16 +364,14 @@ async function generateImage(record) {
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-  drawPlateText(ctx, (record.plateNo || '').toUpperCase(), pb);
-
-  // 车牌照片
   if (photoImg) {
-    const py = PLATE_BOX.y + PLATE_BOX.h + INFO_GAP;
     ctx.save();
-    roundRect(ctx, PAD, py, PHOTO_W, PHOTO_H, 16);
+    roundRect(ctx, pb.x, pb.y, pb.w, pb.h, 16);
     ctx.clip();
-    containDraw(ctx, photoImg, PAD, py, PHOTO_W, PHOTO_H);
+    containDraw(ctx, photoImg, pb.x, pb.y, pb.w, pb.h);
     ctx.restore();
+  } else {
+    drawPlateText(ctx, (record.plateNo || '').toUpperCase(), pb);
   }
 
   // 信息区分隔线 + 行
@@ -439,7 +433,7 @@ function showPreview(dataUrl, record) {
   $('previewImg').src = dataUrl;
   const save = $('saveBtn');
   save.href = dataUrl;
-  save.download = '预检单_' + (record.plateNo || '') + '.png';
+  save.download = '预检单_' + ((record.plateNo || '').trim() || '照片') + '.png';
   $('shareTip').hidden = true;
   try {
     fetch(dataUrl).then(function (r) { return r.blob(); }).then(function (blob) {
@@ -467,7 +461,6 @@ $('shareBtn').addEventListener('click', function () {
 $('againBtn').addEventListener('click', function () {
   $('previewModal').hidden = true;
   resetForm();
-  plateInput.focus();
 });
 
 $('doneBtn').addEventListener('click', function () {
@@ -550,13 +543,21 @@ function renderRecords() {
 
     const top = document.createElement('div');
     top.className = 'record-top';
-    const plate = document.createElement('span');
-    plate.className = 'record-plate';
-    plate.textContent = item.plateNo;
+    if (item.platePhoto) {
+      const thumb = document.createElement('img');
+      thumb.className = 'record-plate-photo';
+      thumb.src = item.platePhoto;
+      thumb.alt = '车牌照片';
+      top.appendChild(thumb);
+    } else {
+      const plate = document.createElement('span');
+      plate.className = 'record-plate';
+      plate.textContent = item.plateNo;
+      top.appendChild(plate);
+    }
     const seq = document.createElement('span');
     seq.className = 'record-seq';
     seq.textContent = '序号 ' + String(item.seq).padStart(3, '0');
-    top.appendChild(plate);
     top.appendChild(seq);
 
     const sub = document.createElement('div');
@@ -576,7 +577,7 @@ function renderRecords() {
     del.textContent = '删除';
     del.addEventListener('click', function (e) {
       e.stopPropagation();
-      askConfirm('确定删除 ' + item.plateNo + ' 这条记录吗？', function () {
+      askConfirm('确定删除序号 ' + item.seq + ' 这条记录吗？', function () {
         records = records.filter(function (r) { return r.id !== item.id; });
         saveRecords();
         renderRecords();
@@ -608,10 +609,10 @@ function csvEscape(s) {
 
 function exportCSV() {
   const list = todayRecords();
-  const header = ['序号', '登记时间', '车牌号', '变速器', '排气管数量', '行驶公里数', '预检员'];
+  const header = ['序号', '登记时间', '车牌照片', '变速器', '排气管数量', '行驶公里数', '预检员'];
   const rows = list.map(function (r) {
     return [
-      r.seq, formatDateTime(r.createdAt), r.plateNo,
+      r.seq, formatDateTime(r.createdAt), r.platePhoto ? '（照片）' : '',
       r.gearbox || '', r.exhaust || '', r.mileage || '', r.inspector || ''
     ];
   });
@@ -725,8 +726,7 @@ function showOcrShot(dataUrl) {
   $('ocrResultRow').hidden = false;
   $('ocrPhotoBtn').hidden = true;
   $('ocrAlbumBtn').hidden = true;
-  setOcrStatus('已拍摄，请按照片填写车牌号');
-  $('ocrResult').focus();
+  setOcrStatus('已拍摄');
 }
 
 function showOcrFallback(msg) {
@@ -746,7 +746,6 @@ function openOcrModal() {
   $('ocrFallback').hidden = true;
   $('ocrPhotoBtn').hidden = true;
   $('ocrAlbumBtn').hidden = true;
-  $('ocrResult').value = '';
   setOcrStatus('请将车牌对准方框，点击拍照');
   $('ocrModal').hidden = false;
 
@@ -844,15 +843,13 @@ $('ocrAlbumInput').addEventListener('change', function () {
 $('ocrRetryBtn').addEventListener('click', function () {
   $('ocrResultRow').hidden = true;
   $('ocrShotWrap').hidden = true;
-  currentPlatePhoto = null;
   openOcrModal();
 });
 
-/* 确认填写 */
+/* 确认使用：照片作为车牌号展示 */
 $('ocrConfirmBtn').addEventListener('click', function () {
-  const val = $('ocrResult').value.trim().toUpperCase();
-  if (!val) return;
-  plateInput.value = val;
+  if (!currentPlatePhoto) return;
+  showFormPlatePhoto(currentPlatePhoto);
   clearPlateError();
   closeModalOcr();
 });
